@@ -1,68 +1,67 @@
 # Saverville
 
 ## Overview
-* Saverville is a decentralized application (DApp) that implements a Farmville-style game using on-chain savings mechanisms.
-* Players, referred to as Farmers, engage in the game by depositing funds into the system, represented as seeds, which mature over time into plants, akin to certificates of deposit (CDs).
-* Upon maturity, plants can be harvested, resulting in a payout from the Market, allowing Farmers to withdraw their initial deposit plus interest.
+Saverville is a decentralized game based on blockchain technology that simulates farming activities using a financial model akin to certificates of deposit (CDs). Players, known as "Farmers," manage virtual farms, growing crops that represent financial investments with defined maturity periods.
 
-## Mechanics
-1. **Seed Purchase and Planting**:
-    * Farmers can purchase seeds from the Market.
-    * Purchased seeds can be planted in the Farmer's Farm.
+## Game Mechanics
+- **Purchasing Seeds**: Farmers buy seeds from the Market.
+- **Planting Seeds**: Farmers plant their seeds on various plots within their farm.
+- **Growth Period**: Seeds mature over time, with a random variance in growth duration.
+- **Harvesting**: Harvested plants represent the maturity of the CDs, yielding the initial investment plus interest.
+- **Selling Crops**: Farmers can sell their harvested crops at the Market.
+- **Withdrawing Funds**: Funds can be withdrawn, similar to withdrawing from a savings account.
 
-2. **Plant Growth and Harvesting**:
-    * Seeds grow into plants over time.
-    * Plants mature after a specified duration, possibly with a random variation.
-    * Mature plants can be harvested by the Farmer.
-    * Harvesting a plant results in a payout from the Market, representing the matured deposit plus interest.
+## Smart Contracts
 
-3. **Market Operations**:
-    * Farmers can sell plants to the Market.
-    * The Market facilitates the payout to Farmers upon harvesting.
-
-4. **Farm Management**:
-    * Farmers can view their Farm, which includes planted seeds and matured plants.
-    * Farmers can withdraw funds from their Farm.
-
-## Protocol Components
-
-### Smart Contract: `Saverville`
-
-#### Structs
-* `Seed`
-    * `address owner`
-    * `uint purchaseTimestamp`
-    * `uint maturityTimestamp`
-    * `uint depositAmount`
-* `Plant`
-    * `address owner`
-    * `uint maturityTimestamp`
-    * `uint depositAmount`
-    * `bool harvested`
-
-#### Variables
-* `mapping(uint => Seed) seeds` - Maps seed IDs to their respective details.
-* `mapping(uint => Plant) plants` - Maps plant IDs to their respective details.
-
-#### Events
-* `SeedPurchased(address buyer, uint seedId, uint depositAmount)`
-* `PlantHarvested(address farmer, uint plantId, uint payoutAmount)`
-* `PlantSold(address farmer, uint plantId, uint saleAmount)`
-* `FundsWithdrawn(address farmer, uint amount)`
+### 1. `Market`
+Handles all transactions related to buying seeds and selling crops.
 
 #### Methods
-* `purchaseSeed(uint depositAmount)`: Allows a Farmer to purchase a seed by depositing funds.
-* `plantSeed(uint seedId)`: Allows a Farmer to plant a purchased seed in their Farm.
-* `harvestPlant(uint plantId)`: Allows a Farmer to harvest a matured plant, receiving a payout.
-* `sellPlant(uint plantId)`: Allows a Farmer to sell a matured plant to the Market.
-* `withdrawFunds()`: Allows a Farmer to withdraw funds from their Farm.
+- **buySeeds(uint seedType, uint quantity, address farmAddress)**
+  - Farmers purchase seeds, which are sent to their specified farm address.
+- **sellCrops(uint plotId, uint amount)**
+  - Farmers sell crops from a specific plot for in-game currency.
 
-## User Interface
-* Saverville should provide a user-friendly interface for Farmers to interact with the game, including:
-    * Seed purchasing
-    * Planting seeds
-    * Harvesting plants
-    * Selling plants
-    * Withdrawing funds
+### 2. `Farm`
+Manages the individual farmer's entire farming operation, containing multiple farm plots.
 
-This protocol specification outlines the core functionality and components of Saverville, enabling Farmers to engage in on-chain savings through a gamified experience.
+#### Variables
+- `address owner` - Owner of the farm.
+- `FarmPlot[] plots` - Array of plots within the farm.
+
+#### Methods
+- **addPlot()**
+  - Adds a new plot to the farm.
+- **plantSeeds(uint plotId, uint[] seedTypes)**
+  - Plants seeds in a specified plot within the farm.
+- **harvestCrops(uint plotId)**
+  - Harvests mature crops from a specified plot.
+
+### 3. `FarmPlot`
+Tracks the seeds planted in each plot and their maturity.
+
+#### Variables
+- `uint[] seeds` - Seeds planted in this plot.
+- `uint plantingDate` - Date when seeds were planted.
+
+#### Methods
+- **plant(uint seedType)**
+  - Plants a seed in the plot.
+- **harvest()**
+  - Harvests all mature crops in the plot.
+
+### Inheritance and Interfaces
+
+- **ERC721 (NFT)**: Used in `Farm` to represent ownership of a farm.
+- **ERC20 (Fungible Token)**: Used for transactions within the Market.
+
+### Events
+
+- **SeedPurchased**
+  - `address buyer, uint seedType, uint quantity`
+- **SeedPlanted**
+  - `address farmAddress, uint plotId, uint seedType`
+- **CropHarvested**
+  - `address farmAddress, uint plotId, uint amount`
+- **CropsSold**
+  - `address seller, uint amountReceived`
