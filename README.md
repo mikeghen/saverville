@@ -11,7 +11,27 @@ Saverville is a decentralized game based on blockchain technology that simulates
 - **Selling Crops**: Farmers can sell their harvested crops at the Market.
 - **Withdrawing Funds**: Funds can be withdrawn, similar to withdrawing from a savings account.
 
+
+
 ## Smart Contracts
+
+### Flowchart
+```mermaid
+graph TD
+    Farm[Farm] -->|1. buy seeds| Market[Market]
+    Farm -->|2. plant seeds| FarmPlot[Farm Plot]
+    Farm -->|3. harvests crops| FarmPlot
+    Farm -->|4. sells crops| Market
+
+    style Market fill:#f90,stroke:#333,stroke-width:2px
+    style Farm fill:#303,stroke:#333,stroke-width:2px
+    style FarmPlot fill:#cf8,stroke:#333,stroke-width:2px
+```
+1. Buy Seeds: Farmers purchase seeds from the Market.
+2. Plant Seeds: Farmers plant seeds in their farm plots. 
+3. Harvest Crops: Farmers harvest mature crops from their farm plots.
+4. Sell Crops: Farmers sell harvested crops at the Market.
+
 
 ### 1. `Market`
 Handles all transactions related to buying seeds and selling crops.
