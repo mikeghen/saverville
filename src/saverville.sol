@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-contract Saverville is VRFConsumerBaseV2{
+import {VRFCoordinatorV2Interface} from "chainlink/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
+import {VRFConsumerBaseV2} from "chainlink/src/v0.8/vrf/VRFConsumerBaseV2.sol";
+
+contract Saverville is VRFConsumerBaseV2 {
     address public owner;
 
     struct Farmer {
@@ -36,13 +39,15 @@ contract Saverville is VRFConsumerBaseV2{
     // Adding random number with chainlink vrf
     uint256 cropMaxTime;
 
-    constructor(uint64 _subscriptionId, string _networkAddress) 
-    
-    VRFConsumerBaseV2(_networkAddress)
-    {
-        COORDINATOR = VRFCoordinatorV2Interface(
-            _networkAddress
-        );
+    VRFCoordinatorV2Interface coordinator;
+
+    uint256 s_subscriptionId;
+
+    constructor(
+        uint64 _subscriptionId,
+        address _networkAddress
+    ) VRFConsumerBaseV2(_networkAddress) {
+        coordinator = VRFCoordinatorV2Interface(_networkAddress);
         s_subscriptionId = _subscriptionId;
         owner = msg.sender;
     }
@@ -52,7 +57,10 @@ contract Saverville is VRFConsumerBaseV2{
         _;
     }
 
-    function fulfillRandomWords(uint256, /* requestId */ uint256[] memory _randomWords) internal {
+    function fulfillRandomWords(
+        uint256,
+        /* requestId */ uint256[] memory _randomWords
+    ) internal override {
         // Assuming only one random word was requested.
         uint256 s_randomRange = (_randomWords[0] % 50) + 1;
     }
@@ -68,7 +76,14 @@ contract Saverville is VRFConsumerBaseV2{
             revert("Deposit must be greater than 0");
         }
 
-        farmers[currentFarmerId] = Farmer(msg.sender, _cropId, currentFarmerId, block.timestamp, msg.value, true);
+        farmers[currentFarmerId] = Farmer(
+            msg.sender,
+            _cropId,
+            currentFarmerId,
+            block.timestamp,
+            msg.value,
+            true
+        );
 
         currentFarmerId++;
     }
