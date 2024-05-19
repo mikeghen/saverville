@@ -9,16 +9,13 @@ contract SavervilleTest is Test {
 
     function setUp() public {
         saverville = new Saverville();
-        
     }
 
     function testOwnerIsMsgSender() public view {
         assertEq(saverville.owner(), address(this));
     }
 
-    function testCreateCrop() public {
-
-    }
+    function testCreateCrop() public {}
 
     function testDeposit() public {
         uint256 balanceBefore = address(saverville).balance;
@@ -28,7 +25,5 @@ contract SavervilleTest is Test {
         assertEq(balanceAfter - balanceBefore, 1 ether, "expect increase of 1 ether");
     }
 
-    function testHarvest() public {
-
-    }
+    function testHarvest() public {}
 }

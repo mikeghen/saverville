@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-contract Saverville {
+contract Saverville is VRFConsumerBaseV2{
     address public owner;
 
     struct Farmer {
@@ -19,11 +19,8 @@ contract Saverville {
         uint256 maxLockTime;
     }
 
-
     // Test Crop
     Crop corn = Crop(0, 15, cropMaxTime);
-    
-
 
     // List of Farmers in protocol
     mapping(uint256 => Farmer) public farmers;
@@ -39,8 +36,14 @@ contract Saverville {
     // Adding random number with chainlink vrf
     uint256 cropMaxTime;
 
-
-    constructor() {
+    constructor(uint64 _subscriptionId, string _networkAddress) 
+    
+    VRFConsumerBaseV2(_networkAddress)
+    {
+        COORDINATOR = VRFCoordinatorV2Interface(
+            _networkAddress
+        );
+        s_subscriptionId = _subscriptionId;
         owner = msg.sender;
     }
 
@@ -49,9 +52,13 @@ contract Saverville {
         _;
     }
 
-    function createCrop(uint256 _min, uint256 _max) onlyOwner private {
-        
-        crops[cropId]=Crop(cropId, _min, _max);
+    function fulfillRandomWords(uint256, /* requestId */ uint256[] memory _randomWords) internal {
+        // Assuming only one random word was requested.
+        uint256 s_randomRange = (_randomWords[0] % 50) + 1;
+    }
+
+    function createCrop(uint256 _min, uint256 _max) private onlyOwner {
+        crops[cropId] = Crop(cropId, _min, _max);
 
         cropId++;
     }
@@ -61,8 +68,7 @@ contract Saverville {
             revert("Deposit must be greater than 0");
         }
 
-        farmers[currentFarmerId] =
-            Farmer(msg.sender, _cropId, currentFarmerId, block.timestamp, msg.value, true);
+        farmers[currentFarmerId] = Farmer(msg.sender, _cropId, currentFarmerId, block.timestamp, msg.value, true);
 
         currentFarmerId++;
     }
@@ -76,12 +82,11 @@ contract Saverville {
 
         if (farmers[_farmerId].matured != false) {
             revert("The crop has not matured yet");
-        } 
-        
+        }
+
         uint256 planetDate = farmers[_farmerId].lockDate;
         uint256 cropType = farmers[_farmerId].cropId;
         uint256 cropMinTime = crops[cropType].minLockTime;
-        
 
         if (planetDate < planetDate + cropMinTime) {
             revert("It is not harvest time yet");
