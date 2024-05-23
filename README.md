@@ -11,8 +11,6 @@ Saverville is a decentralized game based on blockchain technology that simulates
 - **Selling Crops**: Farmers can sell their harvested crops at the Market.
 - **Withdrawing Funds**: Funds can be withdrawn, similar to withdrawing from a savings account.
 
-
-
 ## Smart Contracts
 
 ### Flowchart
@@ -32,13 +30,14 @@ graph TD
 3. Harvest Crops: Farmers harvest mature crops from their farm plots.
 4. Sell Crops: Farmers sell harvested crops at the Market.
 
+### Smart Contract Components
 
 ### 1. `Market`
 Handles all transactions related to buying seeds and selling crops.
 
 #### Methods
-- **buySeeds(uint seedType, uint quantity, address farmAddress)**
-  - Farmers purchase seeds, which are sent to their specified farm address.
+- **buySeeds(uint quantity)**
+  - Farmers purchase seeds, which are added to their farm.
 - **sellCrops(uint plotId, uint amount)**
   - Farmers sell crops from a specific plot for in-game currency.
 
@@ -47,41 +46,46 @@ Manages the individual farmer's entire farming operation, containing multiple fa
 
 #### Variables
 - `address owner` - Owner of the farm.
-- `FarmPlot[] plots` - Array of plots within the farm.
+- `FarmPlot[100] plots` - Array of plots within the farm.
+- `uint256 plantableSeeds` - Number of seeds that can be planted.
+- `uint256 totalEarnings` - Total earnings in ETH from harvested plants.
+- `uint256 totalHarvestedPlants` - Total number of harvested plants.
 
 #### Methods
-- **addPlot()**
-  - Adds a new plot to the farm.
-- **plantSeeds(uint plotId, uint[] seedTypes)**
-  - Plants seeds in a specified plot within the farm.
-- **harvestCrops(uint plotId)**
-  - Harvests mature crops from a specified plot.
+- **plantSeed(uint256 plotId)**
+  - Plants a seed in a specified plot within the farm.
+- **waterPlant(uint256 plotId)**
+  - Waters the planted seed, setting the harvest time.
+- **harvestPlant(uint256 plotId)**
+  - Harvests the mature plant from a specified plot.
 
 ### 3. `FarmPlot`
-Tracks the seeds planted in each plot and their maturity.
+Tracks the state of each plot and its maturity.
 
 #### Variables
-- `uint[] seeds` - Seeds planted in this plot.
-- `uint plantingDate` - Date when seeds were planted.
+- `uint state` - State of the plot (0 = free, 1 = seeded, 2 = watered).
+- `uint harvestAt` - Timestamp when the plot can be harvested.
 
 #### Methods
-- **plant(uint seedType)**
-  - Plants a seed in the plot.
+- **plant()**
+  - Changes the state to seeded.
+- **water()**
+  - Changes the state to watered and sets the harvest time.
 - **harvest()**
-  - Harvests all mature crops in the plot.
+  - Changes the state to free after harvest.
 
 ### Inheritance and Interfaces
 
-- **ERC721 (NFT)**: Used in `Farm` to represent ownership of a farm.
-- **ERC20 (Fungible Token)**: Used for transactions within the Market.
+- **VRFConsumerBaseV2**: Used to get random values for the growth period from Chainlink VRF.
+- **VRFCoordinatorV2Interface**: Interface for Chainlink VRF Coordinator.
 
 ### Events
 
 - **SeedPurchased**
-  - `address buyer, uint seedType, uint quantity`
+  - `address buyer, uint quantity`
 - **SeedPlanted**
-  - `address farmAddress, uint plotId, uint seedType`
-- **CropHarvested**
-  - `address farmAddress, uint plotId, uint amount`
-- **CropsSold**
-  - `address seller, uint amountReceived`
+  - `address farmAddress, uint plotId`
+- **PlantWatered**
+  - `address farmAddress, uint plotId, uint harvestAt`
+- **PlantHarvested**
+  - `address farmAddress, uint plotId`
