@@ -19,11 +19,10 @@ contract Saverville is VRFConsumerBaseV2 {
     struct Crop {
         uint256 planetId;
         uint256 minLockTime;
-        uint256 maxLockTime;
     }
 
     // Test Crop
-    Crop corn = Crop(0, 15, cropMaxTime);
+    Crop corn = Crop(0, 15 + randomDaysAdded);
 
     // List of Farmers in protocol
     mapping(uint256 => Farmer) public farmers;
@@ -37,18 +36,17 @@ contract Saverville is VRFConsumerBaseV2 {
     // Unlock Date is the min plus the lockDate
     uint256 public unlockDate;
     // Adding random number with chainlink vrf
-    uint256 cropMaxTime;
+    uint256 randomDaysAdded;
 
     VRFCoordinatorV2Interface coordinator;
-
-    uint256 s_subscriptionId;
+    uint256 subscriptionId;
 
     constructor(
         uint64 _subscriptionId,
         address _networkAddress
     ) VRFConsumerBaseV2(_networkAddress) {
         coordinator = VRFCoordinatorV2Interface(_networkAddress);
-        s_subscriptionId = _subscriptionId;
+        subscriptionId = _subscriptionId;
         owner = msg.sender;
     }
 
@@ -58,16 +56,15 @@ contract Saverville is VRFConsumerBaseV2 {
     }
 
     function fulfillRandomWords(
-        uint256,
-        /* requestId */ uint256[] memory _randomWords
+        uint256 requestId,
+        uint256[] memory _randomWords
     ) internal override {
-        // Assuming only one random word was requested.
-        uint256 s_randomRange = (_randomWords[0] % 50) + 1;
+        uint256 randomRange = (_randomWords[0] % 11);
+        randomDaysAdded = randomRange;
     }
 
-    function createCrop(uint256 _min, uint256 _max) private onlyOwner {
-        crops[cropId] = Crop(cropId, _min, _max);
-
+    function createCrop(uint256 _minDays) private onlyOwner {
+        crops[cropId] = Crop(cropId, _minDays);
         cropId++;
     }
 
@@ -82,7 +79,7 @@ contract Saverville is VRFConsumerBaseV2 {
             currentFarmerId,
             block.timestamp,
             msg.value,
-            true
+            false // Set matured to false initially
         );
 
         currentFarmerId++;

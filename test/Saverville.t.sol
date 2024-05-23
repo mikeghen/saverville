@@ -7,15 +7,22 @@ import {VRFCoordinatorV2Mock} from "chainlink/src/v0.8/vrf/mocks/VRFCoordinatorV
 
 contract SavervilleTest is Test {
     Saverville public saverville;
+    uint64 subId;
+    uint256 randomNumber;
+    uint256 requestId;
+    bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
+    uint32 callbackGasLimit = 200000;
+    uint16 blockConfirmations = 10;
+    uint32 numWords = 1;
 
-    function setUp() public {
+    function setUp() external {
 
         // Setup Chainlink VRF 
         // Steps: https://docs.chain.link/vrf/v2/subscription/examples/test-locally#testing-logic
         VRFCoordinatorV2Mock vrfCoordinator = new VRFCoordinatorV2Mock(1,1);
 
         // Create a subscription
-        uint64 subId = vrfCoordinator.createSubscription();
+        subId = vrfCoordinator.createSubscription();
         address networkAddress = 0x4d21A42d5f91f97AF5012FC73F34Fe56a49d3250;
 
         // Fund Subscription
@@ -27,10 +34,11 @@ contract SavervilleTest is Test {
         // Add Consumer
         vrfCoordinator.addConsumer(subId, address(this));
 
-
         // Random number
-        bytes32 Hashkey = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
-        uint256 RandomNumber = vrfCoordinator.requestRandomWords(Hashkey, subId, 1, 1, 1);
+        requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
+
+        // fullfill request
+        vrfCoordinator.fulfillRandomWords(requestId, address(this));
     }
 
     // Golbal Random seed
@@ -38,7 +46,7 @@ contract SavervilleTest is Test {
     // Planting seed is creft of deposit 
 
     function test_RandomNumberIsNotZero() public {
-        
+        console2.log(randomNumber);
     }
 
     function test_OwnerIsMsgSender() public view {
