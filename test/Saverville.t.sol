@@ -7,61 +7,100 @@ import {VRFCoordinatorV2Mock} from "chainlink/src/v0.8/vrf/mocks/VRFCoordinatorV
 
 contract SavervilleTest is Test {
     Saverville public saverville;
+    VRFCoordinatorV2Mock public vrfCoordinator;
     uint64 subId;
-    uint256 randomNumber;
     uint256 requestId;
     bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
     uint32 callbackGasLimit = 200000;
-    uint16 blockConfirmations = 10;
+    uint16 blockConfirmations = 3;
     uint32 numWords = 1;
 
     function setUp() external {
-
         // Setup Chainlink VRF 
-        // Steps: https://docs.chain.link/vrf/v2/subscription/examples/test-locally#testing-logic
-        VRFCoordinatorV2Mock vrfCoordinator = new VRFCoordinatorV2Mock(1,1);
+        vrfCoordinator = new VRFCoordinatorV2Mock(1, 1);
 
         // Create a subscription
         subId = vrfCoordinator.createSubscription();
-        address networkAddress = 0x4d21A42d5f91f97AF5012FC73F34Fe56a49d3250;
+        address networkAddress = address(vrfCoordinator);
 
         // Fund Subscription
-        vrfCoordinator.fundSubscription(subId, 100);
+        vrfCoordinator.fundSubscription(subId, 100 ether);
 
-        // Deploy Saverville (to get consumer address)
+        // Deploy Saverville
         saverville = new Saverville(subId, networkAddress);
 
         // Add Consumer
-        vrfCoordinator.addConsumer(subId, address(this));
-
-        // Random number
-        requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
-
-        // fullfill request
-        vrfCoordinator.fulfillRandomWords(requestId, address(this));
+        vrfCoordinator.addConsumer(subId, address(saverville));
     }
 
-    // Golbal Random seed
-    // When number is need take % of Random seed
-    // Planting seed is creft of deposit 
-
     function test_RandomNumberIsNotZero() public {
-        console2.log(randomNumber);
+        requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
+        vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
+        uint256 randomSeed = saverville.randomSeed();
+        console2.log(randomSeed);
+        assert(randomSeed > 0);
     }
 
     function test_OwnerIsMsgSender() public view {
         assertEq(saverville.owner(), address(this));
     }
 
-    function test_CreateCrop() public {}
-
-    function test_Deposit() public {
-        uint256 balanceBefore = address(saverville).balance;
-        saverville.deposit{value: 1 ether}(0);
-        uint256 balanceAfter = address(saverville).balance;
-
-        assertEq(balanceAfter - balanceBefore, 1 ether, "expect increase of 1 ether");
+    function test_BuySeeds() public {
+        uint256 quantity = 10;
+        uint256 cost = quantity * saverville.seedPrice();
+        saverville.buySeeds{value: cost}(quantity);
+        (uint256 plantableSeeds,,) = saverville.farms(address(this));
+        assertEq(plantableSeeds, quantity);
     }
 
-    function test_Harvest() public {}
+    function test_PlantSeed() public {
+        uint256 quantity = 10;
+        uint256 cost = quantity * saverville.seedPrice();
+        saverville.buySeeds{value: cost}(quantity);
+
+        saverville.plantSeed(0);
+        (uint256 plantableSeeds,,) = saverville.farms(address(this));
+        assertEq(plantableSeeds, quantity - 1);
+
+        (uint state,) = saverville.farms(address(this)).plots[0];
+        assertEq(state, 1); // Plot should be seeded
+    }
+
+    function test_WaterPlant() public {
+        uint256 quantity = 10;
+        uint256 cost = quantity * saverville.seedPrice();
+        saverville.buySeeds{value: cost}(quantity);
+
+        saverville.plantSeed(0);
+        requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
+        vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
+
+        saverville.waterPlant(0);
+        (, uint harvestAt) = saverville.farms(address(this)).plots[0];
+        assert(harvestAt > block.timestamp);
+
+        (uint state,) = saverville.farms(address(this)).plots[0];
+        assertEq(state, 2); // Plot should be watered
+    }
+
+    function test_HarvestPlant() public {
+        uint256 quantity = 10;
+        uint256 cost = quantity * saverville.seedPrice();
+        saverville.buySeeds{value: cost}(quantity);
+
+        saverville.plantSeed(0);
+        requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
+        vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
+
+        saverville.waterPlant(0);
+        (, uint harvestAt) = saverville.farms(address(this)).plots[0];
+        skip(harvestAt - block.timestamp + 1);
+
+        saverville.harvestPlant(0);
+        (uint state,) = saverville.farms(address(this)).plots[0];
+        assertEq(state, 0); // Plot should be free
+
+        (, uint256 totalHarvestedPlants,) = saverville.farms(address(this));
+        assertEq(totalHarvestedPlants, 1);
+    }
 }
