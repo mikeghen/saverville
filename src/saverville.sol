@@ -12,7 +12,7 @@ contract Saverville is VRFConsumerBaseV2 {
 
     // Average duration, this amount is what we alter randomly
     uint256 averageDuration = 120; // 2 minutes
-    
+
     // Each user has their own farm and a farm has many farm plots
     struct Farm {
         FarmPlot[100] plots;
@@ -21,7 +21,7 @@ contract Saverville is VRFConsumerBaseV2 {
         uint256 totalHarvestedPlants; // The number of plants that have been harvested
     }
 
-    // Farm plots get seeded, watered and harvested
+    // Farm plots get seeded, watered, and harvested
     // To seed a farm plot, the user has to buy seeds
     // Each farm plot is seeded with seedPrice amount of ETH
     // When a seed gets planted, it gets deposited into Aave 
@@ -33,7 +33,7 @@ contract Saverville is VRFConsumerBaseV2 {
         // watered -> free (harvest)
         uint harvestAt; // Timestamp when this plot can be harvested, set when watered randomized a bit with chainlink
     }
-    
+
     // List of Farms in protocol
     mapping(address => Farm) public farms;
 
@@ -54,7 +54,7 @@ contract Saverville is VRFConsumerBaseV2 {
     }
 
     modifier onlyOwner() {
-        if (msg.sender != owner) revert("Not owner");
+        require(msg.sender == owner, "Not owner");
         _;
     }
 
@@ -63,52 +63,50 @@ contract Saverville is VRFConsumerBaseV2 {
         uint256[] memory _randomWords
     ) internal override {
         uint256 randomRange = (_randomWords[0] % 11);
-        randomDaysAdded = randomRange;
+        randomSeed = randomRange;
     }
 
-    function createCrop(uint256 _minDays) private onlyOwner {
-        crops[cropId] = Crop(cropId, _minDays);
-        cropId++;
+    function plantSeed(uint256 _plotId) public payable {
+        require(msg.value >= seedPrice, "Insufficient seed price");
+        Farm storage farm = farms[msg.sender];
+        require(_plotId < 100, "Invalid plot ID");
+        require(farm.plots[_plotId].state == 0, "Plot not free");
+
+        farm.plots[_plotId].state = 1; // Seeded
+        farm.plantableSeeds += 1;
+
+        // Logic to deposit into Aave should be implemented here
     }
 
-    function deposit(uint8 _cropId) public payable {
-        if (msg.value < 0) {
-            revert("Deposit must be greater than 0");
-        }
+    function waterPlant(uint256 _plotId) public {
+        Farm storage farm = farms[msg.sender];
+        require(_plotId < 100, "Invalid plot ID");
+        require(farm.plots[_plotId].state == 1, "Plot not seeded");
 
-        farmers[currentFarmerId] = Farmer(
-            msg.sender,
-            _cropId,
-            currentFarmerId,
-            block.timestamp,
-            msg.value,
-            false // Set matured to false initially
-        );
-
-        currentFarmerId++;
+        farm.plots[_plotId].state = 2; // Watered
+        farm.plots[_plotId].harvestAt = block.timestamp + (averageDuration + randomSeed) * 1 minutes;
     }
 
-    // Withdraw can only happen within the harvest range
-    // The harvest date will be between a min and max
-    function harvest(uint256 _farmerId) public payable {
-        if (farmers[_farmerId].walletAddress != msg.sender) {
-            revert("Only the farmer who planeted can withdraw");
-        }
+    function harvestPlant(uint256 _plotId) public {
+        Farm storage farm = farms[msg.sender];
+        require(_plotId < 100, "Invalid plot ID");
+        require(farm.plots[_plotId].state == 2, "Plot not watered");
+        require(block.timestamp >= farm.plots[_plotId].harvestAt, "Not harvest time yet");
 
-        if (farmers[_farmerId].matured != false) {
-            revert("The crop has not matured yet");
-        }
+        farm.plots[_plotId].state = 0; // Free
+        farm.totalHarvestedPlants += 1;
 
-        uint256 planetDate = farmers[_farmerId].lockDate;
-        uint256 cropType = farmers[_farmerId].cropId;
-        uint256 cropMinTime = crops[cropType].minLockTime;
+        // Logic to withdraw from Aave and transfer to the user should be implemented here
+    }
 
-        if (planetDate < planetDate + cropMinTime) {
-            revert("It is not harvest time yet");
-        }
+    function buySeeds(uint256 _amount) public payable {
+        require(msg.value >= _amount * seedPrice, "Insufficient ETH for seeds");
+        Farm storage farm = farms[msg.sender];
+        farm.plantableSeeds += _amount;
+    }
 
-        uint256 amount = farmers[_farmerId].weiStaked;
-
-        payable(msg.sender).call{value: amount};
+    function withdraw(uint256 _amount) public onlyOwner {
+        require(address(this).balance >= _amount, "Insufficient balance");
+        payable(msg.sender).transfer(_amount);
     }
 }
