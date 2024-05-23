@@ -7,36 +7,39 @@ import {VRFConsumerBaseV2} from "chainlink/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 contract Saverville is VRFConsumerBaseV2 {
     address public owner;
 
-    struct Farmer {
-        address walletAddress;
-        uint256 cropId;
-        uint256 farmerId;
-        uint256 lockDate;
-        uint256 weiStaked;
-        bool matured;
+    // The price of a seed in ETH
+    uint seedPrice = 0.0025 ether;
+
+    // Average duration, this amount is what we alter randomly
+    uint256 averageDuration = 120; // 2 minutes
+    
+    // Each user has their own farm and a farm has many farm plots
+    struct Farm {
+        FarmPlot[100] plots;
+        uint256 plantableSeeds; // The amount of seeds that have been planted
+        uint256 totalEarnings; // The amount of ETH earned in interest
+        uint256 totalHarvestedPlants; // The number of plants that have been harvested
     }
 
-    struct Crop {
-        uint256 planetId;
-        uint256 minLockTime;
+    // Farm plots get seeded, watered and harvested
+    // To seed a farm plot, the user has to buy seeds
+    // Each farm plot is seeded with seedPrice amount of ETH
+    // When a seed gets planted, it gets deposited into Aave 
+    // When a plant gets harvested the ETH is withdrawn from Aave and added to their balance
+    struct FarmPlot {
+        uint state; // 0 = free, 1 = seeded, 2 = watered 
+        // free -> seeded (plant)
+        // seeded -> watered (water)
+        // watered -> free (harvest)
+        uint harvestAt; // Timestamp when this plot can be harvested, set when watered randomized a bit with chainlink
     }
+    
+    // List of Farms in protocol
+    mapping(address => Farm) public farms;
 
-    // Test Crop
-    Crop corn = Crop(0, 15 + randomDaysAdded);
-
-    // List of Farmers in protocol
-    mapping(uint256 => Farmer) public farmers;
-    // List of Crops in protocol
-    mapping(uint256 => Crop) public crops;
-    // Id's of Farmers
-    uint256 public currentFarmerId;
-    // Id's of Crops
-    uint256 public cropId;
-    // Time when ether will be unlocked
-    // Unlock Date is the min plus the lockDate
-    uint256 public unlockDate;
-    // Adding random number with chainlink vrf
-    uint256 randomDaysAdded;
+    // This random seed is set by Chainlink, the value here is used to seed a random number generated with %
+    // The `setRandomSeed` method is what calls this value to update
+    uint256 randomSeed;
 
     VRFCoordinatorV2Interface coordinator;
     uint256 subscriptionId;
