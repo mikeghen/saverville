@@ -8,14 +8,14 @@ contract Saverville is VRFConsumerBaseV2 {
     address public owner;
 
     // The price of a seed in ETH
-    uint seedPrice = 0.0025 ether;
+    uint public seedPrice = 0.0025 ether;
 
     // Average duration, this amount is what we alter randomly
     uint256 averageDuration = 120; // 2 minutes
 
     // Each user has their own farm and a farm has many farm plots
     struct Farm {
-        FarmPlot[100] plots;
+        mapping(uint => FarmPlot) plots;
         uint256 plantableSeeds; // The amount of seeds that have been planted
         uint256 totalEarnings; // The amount of ETH earned in interest
         uint256 totalHarvestedPlants; // The number of plants that have been harvested
@@ -39,7 +39,7 @@ contract Saverville is VRFConsumerBaseV2 {
 
     // This random seed is set by Chainlink, the value here is used to seed a random number generated with %
     // The `setRandomSeed` method is what calls this value to update
-    uint256 randomSeed;
+    uint256 public randomSeed;
 
     VRFCoordinatorV2Interface coordinator;
     uint256 subscriptionId;
@@ -108,5 +108,12 @@ contract Saverville is VRFConsumerBaseV2 {
     function withdraw(uint256 _amount) public onlyOwner {
         require(address(this).balance >= _amount, "Insufficient balance");
         payable(msg.sender).transfer(_amount);
+    }
+
+    function getFarmPlots(address _farmer, uint _plotId) public view returns (FarmPlot memory) {
+        // farm is the current Farm
+        Farm storage farm = farms[_farmer];
+        // Returning a plot mapped to a uint in the current farm
+        return farm.plots[_plotId];
     }
 }

@@ -59,11 +59,13 @@ contract SavervilleTest is Test {
         saverville.buySeeds{value: cost}(quantity);
 
         saverville.plantSeed(0);
-        (uint256 plantableSeeds,,) = saverville.farms(address(this));
+        // Create the Farm in memory
+        (uint plantableSeeds, ,) = saverville.farms(address(this));
         assertEq(plantableSeeds, quantity - 1);
 
-        (uint state,) = saverville.farms(address(this)).plots[0];
-        assertEq(state, 1); // Plot should be seeded
+        // Get the FarmPlot in memory
+        Saverville.FarmPlot memory farmPlot = saverville.getFarmPlots(address(this), 0);
+        assertEq(farmPlot.state, 1); // Plot should be seeded
     }
 
     function test_WaterPlant() public {
@@ -76,11 +78,9 @@ contract SavervilleTest is Test {
         vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
 
         saverville.waterPlant(0);
-        (, uint harvestAt) = saverville.farms(address(this)).plots[0];
-        assert(harvestAt > block.timestamp);
+        assert(saverville.getFarmPlots(address(this), 0).harvestAt > block.timestamp);
 
-        (uint state,) = saverville.farms(address(this)).plots[0];
-        assertEq(state, 2); // Plot should be watered
+        assertEq(saverville.getFarmPlots(address(this), 0).state, 2); // Plot should be watered
     }
 
     function test_HarvestPlant() public {
@@ -93,12 +93,11 @@ contract SavervilleTest is Test {
         vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
 
         saverville.waterPlant(0);
-        (, uint harvestAt) = saverville.farms(address(this)).plots[0];
-        skip(harvestAt - block.timestamp + 1);
+        
+        skip(saverville.getFarmPlots(address(this), 0).harvestAt - block.timestamp + 1);
 
         saverville.harvestPlant(0);
-        (uint state,) = saverville.farms(address(this)).plots[0];
-        assertEq(state, 0); // Plot should be free
+        assertEq(saverville.getFarmPlots(address(this), 0).state, 0); // Plot should be free
 
         (, uint256 totalHarvestedPlants,) = saverville.farms(address(this));
         assertEq(totalHarvestedPlants, 1);
