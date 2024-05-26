@@ -47,6 +47,16 @@ contract SavervilleTest is Test {
         assert(randomSeed > 0);
     }
 
+    function test_RandomNumberIsBetween1To10() public {
+        vm.prank(consumerAddress);
+        requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
+        vrfCoordinator.fulfillRandomWords(requestId, consumerAddress);
+        uint256 randomSeed = saverville.randomSeed();
+        console2.log(randomSeed);
+        assert(randomSeed > 0 && randomSeed < 11);
+    }
+
+
     function test_OwnerIsMsgSender() public view {
         assertEq(saverville.owner(), address(this));
     }
@@ -116,4 +126,5 @@ contract SavervilleTest is Test {
         (,, uint256 totalHarvestedPlants) = saverville.farms(address(this));
         assertEq(totalHarvestedPlants, 1);
     }
+
 }
