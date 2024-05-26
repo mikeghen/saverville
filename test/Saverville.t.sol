@@ -14,6 +14,7 @@ contract SavervilleTest is Test {
     uint32 callbackGasLimit = 200000;
     uint16 blockConfirmations = 3;
     uint32 numWords = 1;
+    address consumerAddress;
 
     function setUp() external {
         // Setup Chainlink VRF 
@@ -31,11 +32,16 @@ contract SavervilleTest is Test {
 
         // Add Consumer
         vrfCoordinator.addConsumer(subId, address(saverville));
+
+        consumerAddress = address(saverville);
+
     }
 
+
     function test_RandomNumberIsNotZero() public {
+        vm.prank(consumerAddress);
         requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
-        vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
+        vrfCoordinator.fulfillRandomWords(requestId, consumerAddress);
         uint256 randomSeed = saverville.randomSeed();
         console2.log(randomSeed);
         assert(randomSeed > 0);
@@ -74,8 +80,12 @@ contract SavervilleTest is Test {
         saverville.buySeeds{value: cost}(quantity);
 
         saverville.plantSeed(0);
+
+        // consumerAddress must call the random function
+        vm.startPrank(consumerAddress);
         requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
-        vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
+        vrfCoordinator.fulfillRandomWords(requestId, consumerAddress);
+        vm.stopPrank();
 
         saverville.waterPlant(0);
         assert(saverville.getFarmPlots(address(this), 0).harvestAt > block.timestamp);
@@ -89,8 +99,12 @@ contract SavervilleTest is Test {
         saverville.buySeeds{value: cost}(quantity);
 
         saverville.plantSeed(0);
+        
+        // consumerAddress must call the random function
+        vm.startPrank(consumerAddress);
         requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
-        vrfCoordinator.fulfillRandomWords(requestId, address(saverville));
+        vrfCoordinator.fulfillRandomWords(requestId, consumerAddress);
+        vm.stopPrank();
 
         saverville.waterPlant(0);
         
@@ -99,7 +113,7 @@ contract SavervilleTest is Test {
         saverville.harvestPlant(0);
         assertEq(saverville.getFarmPlots(address(this), 0).state, 0); // Plot should be free
 
-        (, uint256 totalHarvestedPlants,) = saverville.farms(address(this));
+        (,, uint256 totalHarvestedPlants) = saverville.farms(address(this));
         assertEq(totalHarvestedPlants, 1);
     }
 }

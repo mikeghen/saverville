@@ -39,6 +39,7 @@ contract Saverville is VRFConsumerBaseV2 {
 
     // This random seed is set by Chainlink, the value here is used to seed a random number generated with %
     // The `setRandomSeed` method is what calls this value to update
+    // @note randomSeed needs to be set
     uint256 public randomSeed;
 
     VRFCoordinatorV2Interface coordinator;
@@ -67,13 +68,13 @@ contract Saverville is VRFConsumerBaseV2 {
     }
 
     function plantSeed(uint256 _plotId) public payable {
-        require(msg.value >= seedPrice, "Insufficient seed price");
+        // require(msg.value >= seedPrice, "Insufficient seed price");
         Farm storage farm = farms[msg.sender];
         require(_plotId < 100, "Invalid plot ID");
         require(farm.plots[_plotId].state == 0, "Plot not free");
 
         farm.plots[_plotId].state = 1; // Seeded
-        farm.plantableSeeds += 1;
+        farm.plantableSeeds -= 1;
 
         // Logic to deposit into Aave should be implemented here
     }
