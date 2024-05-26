@@ -15,6 +15,7 @@ contract SavervilleTest is Test {
     uint16 blockConfirmations = 3;
     uint32 numWords = 1;
     address consumerAddress;
+    
 
     function setUp() external {
         // Setup Chainlink VRF 
@@ -126,5 +127,7 @@ contract SavervilleTest is Test {
         (,, uint256 totalHarvestedPlants) = saverville.farms(address(this));
         assertEq(totalHarvestedPlants, 1);
     }
+
+    // batch approve and buy seeds batch
 
 }
