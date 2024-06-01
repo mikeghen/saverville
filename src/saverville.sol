@@ -81,7 +81,7 @@ function buySeeds(uint256 _amount) public payable {
         Farm storage farm = farms[msg.sender];
         farm.plantableSeeds += _amount;
 
-       // Convert ETH to WETH
+       // Convert ETH to wETH
         MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
         wETH.mint(msg.sender, msg.value);
     }
@@ -98,8 +98,10 @@ function buySeeds(uint256 _amount) public payable {
         uint256 supplyAmount = seedPrice;
         
         MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
-        wETH.approve(address(lendingPool), supplyAmount);
 
+        wETH.approve(address(lendingPool), supplyAmount);
+        wETH.transferFrom(msg.sender, address(lendingPool), supplyAmount);
+        
         // Call the supply function to deposit WETH into Aave
         lendingPool.supply(supplyAmount, msg.sender, 0); // Assuming 0 for referralCode for simplicity
 

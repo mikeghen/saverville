@@ -73,6 +73,10 @@ contract SavervilleTest is Test {
         saverville.buySeeds{value: cost}(quantity);
         (uint256 plantableSeeds,,) = saverville.farms(address(this));
         assertEq(plantableSeeds, quantity);
+
+         // Check the WETH balance of the Saverville contract
+        uint256 savervilleWETHBalance = wETH.balanceOf(address(saverville));
+        console2.log(savervilleWETHBalance);
     }
 
     function test_PlantSeed() public {
