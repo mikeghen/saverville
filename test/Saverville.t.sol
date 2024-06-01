@@ -4,10 +4,15 @@ pragma solidity ^0.8.13;
 import {Test, console2} from "forge-std/Test.sol";
 import {Saverville} from "../src/saverville.sol";
 import {VRFCoordinatorV2Mock} from "chainlink/src/v0.8/vrf/mocks/VRFCoordinatorV2Mock.sol";
+import {MockERC20} from "../src/mocks/MockERC20.sol";
+import {MockLendingPool} from "../src/mocks/MockLendingPool.sol";
 
 contract SavervilleTest is Test {
     Saverville public saverville;
     VRFCoordinatorV2Mock public vrfCoordinator;
+    MockLendingPool public lendingPool;
+    MockERC20 public wETH;
+
     uint64 subId;
     uint256 requestId;
     bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
@@ -15,10 +20,9 @@ contract SavervilleTest is Test {
     uint16 blockConfirmations = 3;
     uint32 numWords = 1;
     address consumerAddress;
-    
 
     function setUp() external {
-        // Setup Chainlink VRF 
+        // Setup Chainlink VRF
         vrfCoordinator = new VRFCoordinatorV2Mock(1, 1);
 
         // Create a subscription
@@ -28,16 +32,18 @@ contract SavervilleTest is Test {
         // Fund Subscription
         vrfCoordinator.fundSubscription(subId, 100 ether);
 
+        // Deploy WETH and MockLendingPool
+        wETH = new MockERC20("Wrapped Ether", "WETH");
+        lendingPool = new MockLendingPool(address(wETH));
+
         // Deploy Saverville
-        saverville = new Saverville(subId, networkAddress);
+        saverville = new Saverville(subId, networkAddress, address(lendingPool));
 
         // Add Consumer
         vrfCoordinator.addConsumer(subId, address(saverville));
 
         consumerAddress = address(saverville);
-
     }
-
 
     function test_RandomNumberIsNotZero() public {
         vm.prank(consumerAddress);
@@ -56,7 +62,6 @@ contract SavervilleTest is Test {
         console2.log(randomSeed);
         assert(randomSeed > 0 && randomSeed < 11);
     }
-
 
     function test_OwnerIsMsgSender() public view {
         assertEq(saverville.owner(), address(this));
@@ -77,7 +82,7 @@ contract SavervilleTest is Test {
 
         saverville.plantSeed(0);
         // Create the Farm in memory
-        (uint plantableSeeds, ,) = saverville.farms(address(this));
+        (uint256 plantableSeeds,,) = saverville.farms(address(this));
         assertEq(plantableSeeds, quantity - 1);
 
         // Get the FarmPlot in memory
@@ -110,7 +115,7 @@ contract SavervilleTest is Test {
         saverville.buySeeds{value: cost}(quantity);
 
         saverville.plantSeed(0);
-        
+
         // consumerAddress must call the random function
         vm.startPrank(consumerAddress);
         requestId = vrfCoordinator.requestRandomWords(keyHash, subId, blockConfirmations, callbackGasLimit, numWords);
@@ -118,7 +123,7 @@ contract SavervilleTest is Test {
         vm.stopPrank();
 
         saverville.waterPlant(0);
-        
+
         skip(saverville.getFarmPlots(address(this), 0).harvestAt - block.timestamp + 1);
 
         saverville.harvestPlant(0);
@@ -129,5 +134,4 @@ contract SavervilleTest is Test {
     }
 
     // batch approve and buy seeds batch
-
 }

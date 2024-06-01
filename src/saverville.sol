@@ -3,9 +3,12 @@ pragma solidity ^0.8.13;
 
 import {VRFCoordinatorV2Interface} from "chainlink/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "chainlink/src/v0.8/vrf/VRFConsumerBaseV2.sol";
+import {MockLendingPool} from "./mocks/mockLendingPool.sol";
+import {MockERC20} from "./mocks/mockErc20.sol";
 
 contract Saverville is VRFConsumerBaseV2 {
     address public owner;
+    MockLendingPool public lendingPool;
 
     // The price of a seed in ETH
     uint public seedPrice = 0.0025 ether;
@@ -39,19 +42,22 @@ contract Saverville is VRFConsumerBaseV2 {
 
     // This random seed is set by Chainlink, the value here is used to seed a random number generated with %
     // The `setRandomSeed` method is what calls this value to update
-    // @note randomSeed needs to be set
     uint256 public randomSeed;
 
     VRFCoordinatorV2Interface coordinator;
     uint256 subscriptionId;
 
+    // Update the constructor to inhert the mockLending pool
     constructor(
         uint64 _subscriptionId,
-        address _networkAddress
-    ) VRFConsumerBaseV2(_networkAddress) {
+        address _networkAddress,
+        address _lendingPoolAddress
+    ) VRFConsumerBaseV2(_networkAddress) 
+      {
         coordinator = VRFCoordinatorV2Interface(_networkAddress);
         subscriptionId = _subscriptionId;
         owner = msg.sender;
+        lendingPool = MockLendingPool(_lendingPoolAddress);
     }
 
     modifier onlyOwner() {
@@ -60,15 +66,27 @@ contract Saverville is VRFConsumerBaseV2 {
     }
 
     function fulfillRandomWords(
-        uint256 requestId,
+        uint256,
         uint256[] memory _randomWords
     ) internal override {
         uint256 randomRange = (_randomWords[0] % 11);
         randomSeed = randomRange;
     }
 
-    function plantSeed(uint256 _plotId) public payable {
-        // require(msg.value >= seedPrice, "Insufficient seed price");
+
+    // This function will allow users to buy as many seeds as they want with ETH
+    // The Eth will be stored into this contract and the user will receive the seed which will be a wETH 
+function buySeeds(uint256 _amount) public payable {
+        require(msg.value >= _amount * seedPrice, "Insufficient ETH for seeds");
+        Farm storage farm = farms[msg.sender];
+        farm.plantableSeeds += _amount;
+
+       // Convert ETH to WETH
+        MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
+        wETH.mint(msg.sender, msg.value);
+    }
+
+    function plantSeed(uint256 _plotId) public {
         Farm storage farm = farms[msg.sender];
         require(_plotId < 100, "Invalid plot ID");
         require(farm.plots[_plotId].state == 0, "Plot not free");
@@ -76,7 +94,15 @@ contract Saverville is VRFConsumerBaseV2 {
         farm.plots[_plotId].state = 1; // Seeded
         farm.plantableSeeds -= 1;
 
-        // Logic to deposit into Aave should be implemented here
+        // Amount of WETH to deposit into Aave
+        uint256 supplyAmount = seedPrice;
+        
+        MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
+        wETH.approve(address(lendingPool), supplyAmount);
+
+        // Call the supply function to deposit WETH into Aave
+        lendingPool.supply(supplyAmount, msg.sender, 0); // Assuming 0 for referralCode for simplicity
+
     }
 
     function waterPlant(uint256 _plotId) public {
@@ -88,6 +114,7 @@ contract Saverville is VRFConsumerBaseV2 {
         farm.plots[_plotId].harvestAt = block.timestamp + (averageDuration + randomSeed) * 1 minutes;
     }
 
+
     function harvestPlant(uint256 _plotId) public {
         Farm storage farm = farms[msg.sender];
         require(_plotId < 100, "Invalid plot ID");
@@ -97,18 +124,9 @@ contract Saverville is VRFConsumerBaseV2 {
         farm.plots[_plotId].state = 0; // Free
         farm.totalHarvestedPlants += 1;
 
-        // Logic to withdraw from Aave and transfer to the user should be implemented here
-    }
-
-    function buySeeds(uint256 _amount) public payable {
-        require(msg.value >= _amount * seedPrice, "Insufficient ETH for seeds");
-        Farm storage farm = farms[msg.sender];
-        farm.plantableSeeds += _amount;
-    }
-
-    function withdraw(uint256 _amount) public onlyOwner {
-        require(address(this).balance >= _amount, "Insufficient balance");
-        payable(msg.sender).transfer(_amount);
+        // Withdraw from Aave and transfer to the user
+        uint256 amount = seedPrice; // The amount to withdraw should match the deposited amount plus any interest earned
+        lendingPool.withdraw(amount, msg.sender);
     }
 
     function getFarmPlots(address _farmer, uint _plotId) public view returns (FarmPlot memory) {

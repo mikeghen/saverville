@@ -4,10 +4,14 @@ pragma solidity ^0.8.13;
 import {Script, console} from "forge-std/Script.sol";
 import {Saverville} from "../src/Saverville.sol";
 import {VRFCoordinatorV2Mock} from "chainlink/src/v0.8/vrf/mocks/VRFCoordinatorV2Mock.sol";
+import {MockERC20} from "../src/mocks/MockERC20.sol";
+import {MockLendingPool} from "../src/mocks/MockLendingPool.sol";
 
 contract DeploySaverville is Script {
     Saverville public saverville;
     VRFCoordinatorV2Mock public vrfCoordinator;
+    MockLendingPool public lendingPool;
+    MockERC20 public wETH;
     uint64 subId;
 
     bytes32 keyHash = 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
@@ -31,8 +35,16 @@ contract DeploySaverville is Script {
         vrfCoordinator.fundSubscription(subId, 100 ether);
         console.log("Funded subscription with 100 ETH");
 
+        // Deploy MockERC20 for WETH
+        wETH = new MockERC20("Wrapped Ether", "WETH");
+        console.log("Deployed MockERC20 (WETH) at:", address(wETH));
+
+        // Deploy MockLendingPool
+        lendingPool = new MockLendingPool(address(wETH));
+        console.log("Deployed MockLendingPool at:", address(lendingPool));
+
         // Deploy Saverville
-        saverville = new Saverville(subId, address(vrfCoordinator));
+        saverville = new Saverville(subId, address(vrfCoordinator), address(lendingPool));
         console.log("Deployed Saverville at:", address(saverville));
 
         // Add Saverville as a consumer to the VRF subscription
