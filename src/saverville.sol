@@ -126,6 +126,9 @@ contract Saverville is VRFConsumerBaseV2 {
         farm.plots[_plotId].state = 0; // Free
         farm.totalHarvestedPlants += 1;
 
+        // Transfer proportional earnings to the user
+        payable(msg.sender).transfer(seedPrice + seedPrice * 5 / 10);
+
         // // Withdraw from Aave and transfer to the user
         // uint256 amount = seedPrice; // The amount to withdraw should match the deposited amount plus any interest earned
         // lendingPool.withdraw(amount, msg.sender);

@@ -20,6 +20,7 @@ contract SavervilleTest is Test {
     uint16 blockConfirmations = 3;
     uint32 numWords = 1;
     address consumerAddress;
+    address farmerAddress;
 
     function setUp() external {
         // Setup Chainlink VRF
@@ -39,10 +40,17 @@ contract SavervilleTest is Test {
         // Deploy Saverville
         saverville = new Saverville(subId, networkAddress, address(lendingPool));
 
+        // Send saverVille some ETH
+        vm.deal(address(saverville), 10 ether);
+
         // Add Consumer
         vrfCoordinator.addConsumer(subId, address(saverville));
 
         consumerAddress = address(saverville);
+
+        farmerAddress = vm.addr(1);
+        vm.deal(farmerAddress, 10 ether);
+
     }
 
     function test_RandomNumberIsNotZero() public {
@@ -68,38 +76,48 @@ contract SavervilleTest is Test {
     }
 
     function test_BuySeeds() public {
+
+        // Check farmer balance before buying seeds
+        uint256 farmerBalance = address(farmerAddress).balance;
+
         uint256 quantity = 10;
         uint256 cost = quantity * saverville.seedPrice();
+        vm.startPrank(farmerAddress);
         saverville.buySeeds{value: cost}(quantity);
-        (uint256 plantableSeeds,,) = saverville.farms(address(this));
+        (uint256 plantableSeeds,,) = saverville.farms(farmerAddress);
         assertEq(plantableSeeds, quantity);
+        vm.stopPrank();
 
-         // Check the WETH balance of the Saverville contract
-        uint256 savervilleWETHBalance = wETH.balanceOf(address(saverville));
-        console2.log(savervilleWETHBalance);
+        // Check farmer balance after buying seeds
+        uint256 farmerBalanceAfter = address(farmerAddress).balance;
+        assertEq(farmerBalance - cost, farmerBalanceAfter);
     }
 
     function test_PlantSeed() public {
         uint256 quantity = 10;
         uint256 cost = quantity * saverville.seedPrice();
-        saverville.buySeeds{value: cost}(quantity);
 
+        vm.startPrank(farmerAddress);
+        saverville.buySeeds{value: cost}(quantity);
         saverville.plantSeed(0);
+        vm.stopPrank();
         // Create the Farm in memory
-        (uint256 plantableSeeds,,) = saverville.farms(address(this));
+        (uint256 plantableSeeds,,) = saverville.farms(farmerAddress);
         assertEq(plantableSeeds, quantity - 1);
 
         // Get the FarmPlot in memory
-        Saverville.FarmPlot memory farmPlot = saverville.getFarmPlots(address(this), 0);
+        Saverville.FarmPlot memory farmPlot = saverville.getFarmPlots(farmerAddress, 0);
         assertEq(farmPlot.state, 1); // Plot should be seeded
     }
 
     function test_WaterPlant() public {
         uint256 quantity = 10;
         uint256 cost = quantity * saverville.seedPrice();
-        saverville.buySeeds{value: cost}(quantity);
 
+        vm.startPrank(farmerAddress);
+        saverville.buySeeds{value: cost}(quantity);
         saverville.plantSeed(0);
+        vm.stopPrank();
 
         // consumerAddress must call the random function
         vm.startPrank(consumerAddress);
@@ -107,18 +125,24 @@ contract SavervilleTest is Test {
         vrfCoordinator.fulfillRandomWords(requestId, consumerAddress);
         vm.stopPrank();
 
+        vm.prank(farmerAddress);
         saverville.waterPlant(0);
-        assert(saverville.getFarmPlots(address(this), 0).harvestAt > block.timestamp);
+        assert(saverville.getFarmPlots(farmerAddress, 0).harvestAt > block.timestamp);
 
-        assertEq(saverville.getFarmPlots(address(this), 0).state, 2); // Plot should be watered
+        assertEq(saverville.getFarmPlots(farmerAddress, 0).state, 2); // Plot should be watered
     }
 
     function test_HarvestPlant() public {
         uint256 quantity = 10;
+        uint256 seedPrice = saverville.seedPrice();
         uint256 cost = quantity * saverville.seedPrice();
-        saverville.buySeeds{value: cost}(quantity);
 
+        vm.startPrank(farmerAddress);
+        saverville.buySeeds{value: cost}(quantity);
         saverville.plantSeed(0);
+        vm.stopPrank();
+
+        uint256 farmerBalance = address(farmerAddress).balance;
 
         // consumerAddress must call the random function
         vm.startPrank(consumerAddress);
@@ -126,15 +150,20 @@ contract SavervilleTest is Test {
         vrfCoordinator.fulfillRandomWords(requestId, consumerAddress);
         vm.stopPrank();
 
+        vm.startPrank(farmerAddress);
         saverville.waterPlant(0);
-
-        skip(saverville.getFarmPlots(address(this), 0).harvestAt - block.timestamp + 1);
+        skip(saverville.getFarmPlots(farmerAddress, 0).harvestAt - block.timestamp + 1);
 
         saverville.harvestPlant(0);
-        assertEq(saverville.getFarmPlots(address(this), 0).state, 0); // Plot should be free
+        assertEq(saverville.getFarmPlots(farmerAddress, 0).state, 0); // Plot should be free
 
-        (,, uint256 totalHarvestedPlants) = saverville.farms(address(this));
+        (,, uint256 totalHarvestedPlants) = saverville.farms(farmerAddress);
         assertEq(totalHarvestedPlants, 1);
+        vm.stopPrank();
+
+        // Check farmer balance after
+        uint256 farmerBalanceAfter = address(farmerAddress).balance;
+        assertEq(farmerBalance + seedPrice + seedPrice * 5 / 10, farmerBalanceAfter);
     }
 
     // batch approve and buy seeds batch
