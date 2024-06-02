@@ -76,14 +76,15 @@ contract Saverville is VRFConsumerBaseV2 {
 
     // This function will allow users to buy as many seeds as they want with ETH
     // The Eth will be stored into this contract and the user will receive the seed which will be a wETH 
-function buySeeds(uint256 _amount) public payable {
+    function buySeeds(uint256 _amount) public payable {
         require(msg.value >= _amount * seedPrice, "Insufficient ETH for seeds");
         Farm storage farm = farms[msg.sender];
         farm.plantableSeeds += _amount;
 
-       // Convert ETH to wETH
-        MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
-        wETH.mint(msg.sender, msg.value);
+    //    // Convert ETH to wETH
+    //     MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
+    //     wETH.mint(msg.sender, msg.value);
+
     }
 
     function plantSeed(uint256 _plotId) public {
@@ -94,16 +95,15 @@ function buySeeds(uint256 _amount) public payable {
         farm.plots[_plotId].state = 1; // Seeded
         farm.plantableSeeds -= 1;
 
-        // Amount of WETH to deposit into Aave
-        uint256 supplyAmount = seedPrice;
+        // // Amount of WETH to deposit into Aave
+        // uint256 supplyAmount = seedPrice;
         
-        MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
+        // MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
 
-        wETH.approve(address(lendingPool), supplyAmount);
-        wETH.transferFrom(msg.sender, address(lendingPool), supplyAmount);
+        // wETH.approve(address(lendingPool), supplyAmount);
         
-        // Call the supply function to deposit WETH into Aave
-        lendingPool.supply(supplyAmount, msg.sender, 0); // Assuming 0 for referralCode for simplicity
+        // // Call the supply function to deposit WETH into Aave
+        // lendingPool.supply(supplyAmount, msg.sender, 0); // Assuming 0 for referralCode for simplicity
 
     }
 
@@ -126,9 +126,9 @@ function buySeeds(uint256 _amount) public payable {
         farm.plots[_plotId].state = 0; // Free
         farm.totalHarvestedPlants += 1;
 
-        // Withdraw from Aave and transfer to the user
-        uint256 amount = seedPrice; // The amount to withdraw should match the deposited amount plus any interest earned
-        lendingPool.withdraw(amount, msg.sender);
+        // // Withdraw from Aave and transfer to the user
+        // uint256 amount = seedPrice; // The amount to withdraw should match the deposited amount plus any interest earned
+        // lendingPool.withdraw(amount, msg.sender);
     }
 
     function getFarmPlots(address _farmer, uint _plotId) public view returns (FarmPlot memory) {
