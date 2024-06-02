@@ -35,13 +35,13 @@ contract DeploySaverville is Script {
         vrfCoordinator.fundSubscription(subId, 100 ether);
         console.log("Funded subscription with 100 ETH");
 
-        // Deploy MockERC20 for WETH
-        wETH = new MockERC20("Wrapped Ether", "WETH");
-        console.log("Deployed MockERC20 (WETH) at:", address(wETH));
+        // // Deploy MockERC20 for WETH
+        // wETH = new MockERC20("Wrapped Ether", "WETH");
+        // console.log("Deployed MockERC20 (WETH) at:", address(wETH));
 
-        // Deploy MockLendingPool
-        lendingPool = new MockLendingPool(address(wETH));
-        console.log("Deployed MockLendingPool at:", address(lendingPool));
+        // // Deploy MockLendingPool
+        // lendingPool = new MockLendingPool(address(wETH));
+        // console.log("Deployed MockLendingPool at:", address(lendingPool));
 
         // Deploy Saverville
         saverville = new Saverville(subId, address(vrfCoordinator), address(lendingPool));
