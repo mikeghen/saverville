@@ -60,9 +60,9 @@ contract DeploySaverville is Script {
         vm.startBroadcast(deployerPrivateKey);
 
 
-        // Deploy MockERC20 for WETH
-        wETH = new MockERC20("Wrapped Ether", "WETH");
-        console.log("Deployed MockERC20 (WETH) at:", address(wETH));
+        // // Deploy MockERC20 for WETH
+        // wETH = new MockERC20("Wrapped Ether", "WETH");
+        // console.log("Deployed MockERC20 (WETH) at:", address(wETH));
 
         // // Deploy MockLendingPool
         // lendingPool = new MockLendingPool(address(wETH));
