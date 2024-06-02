@@ -7,14 +7,6 @@ import {MockLendingPool} from "./mocks/mockLendingPool.sol";
 import {MockERC20} from "./mocks/mockErc20.sol";
 
 contract Saverville is VRFConsumerBaseV2 {
-    address public owner;
-    MockLendingPool public lendingPool;
-
-    // The price of a seed in ETH
-    uint public seedPrice = 0.0025 ether;
-
-    // Average duration, this amount is what we alter randomly
-    uint256 averageDuration = 120; // 2 minutes
 
     // Each user has their own farm and a farm has many farm plots
     struct Farm {
@@ -37,13 +29,25 @@ contract Saverville is VRFConsumerBaseV2 {
         uint harvestAt; // Timestamp when this plot can be harvested, set when watered randomized a bit with chainlink
     }
 
-    // List of Farms in protocol
-    mapping(address => Farm) public farms;
+    address public owner;
+
+    // The price of a seed in ETH
+    uint256 public seedPrice = 1 ether;
+
+    // Average duration, this amount is what we alter randomly
+    uint256 averageDuration = 30; // 2 minutes
 
     // This random seed is set by Chainlink, the value here is used to seed a random number generated with %
     // The `setRandomSeed` method is what calls this value to update
-    uint256 public randomSeed;
+    // @note randomSeed needs to be set
+    uint256 public randomSeed = 5;
 
+    address lendingPool;
+
+    // List of Farms in protocol
+    mapping(address => Farm) public farms;
+
+    // Chainlink VRF
     VRFCoordinatorV2Interface coordinator;
     uint256 subscriptionId;
 
@@ -57,7 +61,7 @@ contract Saverville is VRFConsumerBaseV2 {
         coordinator = VRFCoordinatorV2Interface(_networkAddress);
         subscriptionId = _subscriptionId;
         owner = msg.sender;
-        lendingPool = MockLendingPool(_lendingPoolAddress);
+        lendingPool = _lendingPoolAddress;
     }
 
     modifier onlyOwner() {
@@ -80,11 +84,6 @@ contract Saverville is VRFConsumerBaseV2 {
         require(msg.value >= _amount * seedPrice, "Insufficient ETH for seeds");
         Farm storage farm = farms[msg.sender];
         farm.plantableSeeds += _amount;
-
-    //    // Convert ETH to wETH
-    //     MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
-    //     wETH.mint(msg.sender, msg.value);
-
     }
 
     function plantSeed(uint256 _plotId) public {
@@ -94,17 +93,6 @@ contract Saverville is VRFConsumerBaseV2 {
 
         farm.plots[_plotId].state = 1; // Seeded
         farm.plantableSeeds -= 1;
-
-        // // Amount of WETH to deposit into Aave
-        // uint256 supplyAmount = seedPrice;
-        
-        // MockERC20 wETH = MockERC20(address(lendingPool.wETH()));
-
-        // wETH.approve(address(lendingPool), supplyAmount);
-        
-        // // Call the supply function to deposit WETH into Aave
-        // lendingPool.supply(supplyAmount, msg.sender, 0); // Assuming 0 for referralCode for simplicity
-
     }
 
     function waterPlant(uint256 _plotId) public {
@@ -113,7 +101,7 @@ contract Saverville is VRFConsumerBaseV2 {
         require(farm.plots[_plotId].state == 1, "Plot not seeded");
 
         farm.plots[_plotId].state = 2; // Watered
-        farm.plots[_plotId].harvestAt = block.timestamp + (averageDuration + randomSeed) * 1 minutes;
+        farm.plots[_plotId].harvestAt = block.timestamp + averageDuration + (randomSeed * 1 seconds);
     }
 
 
