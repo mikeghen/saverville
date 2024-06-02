@@ -5,13 +5,6 @@ import {VRFCoordinatorV2Interface} from "chainlink/src/v0.8/vrf/interfaces/VRFCo
 import {VRFConsumerBaseV2} from "chainlink/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 
 contract Saverville is VRFConsumerBaseV2 {
-    address public owner;
-
-    // The price of a seed in ETH
-    uint public seedPrice = 0.0025 ether;
-
-    // Average duration, this amount is what we alter randomly
-    uint256 averageDuration = 120; // 2 minutes
 
     // Each user has their own farm and a farm has many farm plots
     struct Farm {
@@ -34,14 +27,24 @@ contract Saverville is VRFConsumerBaseV2 {
         uint harvestAt; // Timestamp when this plot can be harvested, set when watered randomized a bit with chainlink
     }
 
-    // List of Farms in protocol
-    mapping(address => Farm) public farms;
+    address public owner;
+
+    // The price of a seed in ETH
+    uint256 public seedPrice = 1 ether;
+
+    // Average duration, this amount is what we alter randomly
+    uint256 averageDuration = 30; // 2 minutes
 
     // This random seed is set by Chainlink, the value here is used to seed a random number generated with %
     // The `setRandomSeed` method is what calls this value to update
     // @note randomSeed needs to be set
-    uint256 public randomSeed;
+    uint256 public randomSeed = 5;
 
+
+    // List of Farms in protocol
+    mapping(address => Farm) public farms;
+
+    // Chainlink VRF
     VRFCoordinatorV2Interface coordinator;
     uint256 subscriptionId;
 
@@ -85,7 +88,7 @@ contract Saverville is VRFConsumerBaseV2 {
         require(farm.plots[_plotId].state == 1, "Plot not seeded");
 
         farm.plots[_plotId].state = 2; // Watered
-        farm.plots[_plotId].harvestAt = block.timestamp + (averageDuration + randomSeed) * 1 minutes;
+        farm.plots[_plotId].harvestAt = block.timestamp + averageDuration + (randomSeed * 1 seconds);
     }
 
     function harvestPlant(uint256 _plotId) public {
@@ -97,7 +100,9 @@ contract Saverville is VRFConsumerBaseV2 {
         farm.plots[_plotId].state = 0; // Free
         farm.totalHarvestedPlants += 1;
 
-        // Logic to withdraw from Aave and transfer to the user should be implemented here
+        // Transfer seedPrice amount of ETH to the user
+        payable(msg.sender).transfer(seedPrice);
+
     }
 
     function buySeeds(uint256 _amount) public payable {
